@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html> 
+  <head>
+    <!-- Meta Tag -->
+    <meta charset="utf-8">      
+  </head>
+  <body>
+    <h1 style = "text-align:center; color:steelblue"><bold> Arkansas Population Density, 2022 </bold></h1>
+    <script type="text/javascript" src="scatterplot.js"></script>
+      
+    <h3>Dheeraj Talluri</h3>
+    <h3>Instructor: Suresh Lodha</h3>
+    <h3>CMPS 163: Data Programming for Visualization</h3>
+
+  </body>
+</html>
+
+<style>
+
+.counties {
+  fill: none;
+  stroke: #fff;
+}
+
+.states {
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+}
+/* The following toolstip code was taken from caitlin */
+.toolTip {
+    position: absolute;
+    display: none;
+    min-width: 80px;
+    height: auto;
+    background: none repeat scroll 0 0 #ffffff;
+    border: 1px solid #6F257F;
+    padding: 14px;
+    text-align: center;
+}
+
+</style>
+<svg width="960" height="600"></svg>
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script src="//d3js.org/topojson.v1.min.js"></script>
+<script>
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+var tooltip = d3.select("body").append("div").attr("class", "toolTip");
+var rateById = d3.map();
+var labelById = d3.map();
+var color = d3.scaleThreshold()
+    .domain([1, 5, 10, 25, 50, 100, 250, 500])
+    .range(d3.schemeOrRd[9]);
+var colorBlue = d3.scaleThreshold()
+            .domain([1, 5, 10, 25, 50, 100, 250, 500])
+            .range(d3.schemeBlues[9]);
+  var x = d3.scaleSqrt()
+    .domain([0, 500])
+    .rangeRound([440, 950]);
+
+var g = svg.append("g")
+    .attr("class", "key")
+    .attr("transform", "translate(0,40)");
+
+g.selectAll("rect")
+  .data(color.range().map(function(d) {
+      d = color.invertExtent(d);
+      if (d[0] == null) d[0] = x.domain()[0];
+      if (d[1] == null) d[1] = x.domain()[1];
+      return d;
+    }))
+  .enter().append("rect")
+    .attr("height", 8)
+    .attr("x", function(d) { return x(d[0]); })
+    .attr("width", function(d) { return x(d[1]) - x(d[0]); })
+    .attr("fill", function(d) { return color(d[0]); });
+
+g.append("text")
+    .attr("class", "caption")
+    .attr("x", x.range()[0])
+    .attr("y", -6)
+    .attr("fill", "#000")
+    .attr("text-anchor", "start")
+    .attr("font-weight", "bold")
+    .text("Population per square mile");
+g.append("text")
+    .attr("class", "caption")
+    .attr("x", x.range()[0])
+    .attr("y", -6)
+    .attr("fill", "#000")
+    .attr("text-anchor", "start")
+    .attr("font-weight", "bold")
+    .text("Population per square mile");
+g.call(d3.axisBottom(x)
+    .tickSize(13)
+    .tickValues(color.domain()))
+  .select(".domain")
+    .remove();  
+var projection = d3.geoAlbersUsa()
+    .scale(7000)
+    .translate([width / 2-200, height / 2-400]);
+
+var path = d3.geoPath()
+    .projection(projection);
+    
+/* checking the datasets for Arkansas specifically and getting the density */
+d3.queue()
+    .defer(d3.json, "us-10m.json")
+    .defer(d3.csv, "populationDensity2.csv", function(d) {
+    if (d.label=="Arkansas"){
+        rateById.set(d.geoid2, +d.density); 
+        labelById.set(d.geoid2, d.geolabel); 
+    }
+    })
+    .await(ready);
+
+function ready(error, us) {
+  if (error) throw error;
+//toolstip part partly taken from caitlin ramayrat
+  svg.append("g")
+      .attr("class", "counties")
+    .selectAll("path")
+      .data(topojson.feature(us, us.objects.counties).features)
+    .enter().append("path")
+    .filter(function(d){ return (5001<=d.id && d.id<=5149)})
+      .attr("fill", function(d) { return color(rateById.get(d.id)); })
+      .attr("d", path).on("mouseover", function(d) {
+        tooltip
+          .style("left", d3.event.pageX - 50 + "px")
+          .style("top", d3.event.pageY - 70 + "px")
+          .style("display", "inline-block")
+          .html("County Name:"+" "+ String(labelById.get(d.id))+"<br>Density: "+ String(rateById.get(d.id)));
+    })
+    .on("mouseout", function(d){
+            tooltip
+                .style("display", "none");
+    });;
+    
+
+  svg.append("path")
+      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+      .attr("class", "states")
+      .attr("d", path);
+}
+    svg.append("circle")
+        .attr("cx",900 )
+        .attr("cy", 550)
+        .attr("r", 10)
+        .style("fill", "red")
+        .on("click",function(){
+        svg.selectAll("path")
+            .attr("fill", function(d){return color(rateById.get(d.id));});
+         svg.selectAll("rect")
+                 .attr("fill", function(d) { return color(d[0]); });
+        });
+    svg.append("circle")
+        .attr("cx",900 )
+        .attr("cy", 575)
+        .attr("r", 10)
+        .style("fill", "blue")
+        .on("click",function(){
+            svg.selectAll("path")
+            .attr("fill", function(d){return colorBlue(rateById.get(d.id))});
+            svg.selectAll("rect")
+                 .attr("fill", function(d) { return colorBlue(d[0]); });
+    });
+    svg.append("rect")
+        .attr("x",925 )
+        .attr("y", 550)
+        .attr("width", 10)
+        .attr("height", 10)
+        .style("fill", "white")
+        .attr("stroke","black")
+        .on("click",function(){const element = document.querySelector('.counties');
+element.style.strokeWidth = 1;});
+    svg.append("rect")
+        .attr("x",925 )
+        .attr("y", 575)
+        .attr("width", 10)
+        .attr("height", 10)
+        .attr("stroke","white")
+        .style("fill", "black")
+        .on("click",function(){const element = document.querySelector('.counties');
+element.style.strokeWidth = 0;});
+</script>
+
+<body>
+    
+     <ul>
+      <li>index.html</li>
+      <li>populationDensity.csv</li>
+      <li>us-10m.json</li>
+    </ul>
+      
+    <h4> Sources: </h4>
+      <li>https://bl.ocks.org/mbostock/5562380</li>
+      <li>https://bl.ocks.org/mbostock/4060606</li>
+      <li>Gurpinder Singh</li>
+    
+   
+
+</body>
